@@ -47,21 +47,32 @@ def download_model(url, dest_path):
             with open(dest_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            print(f"Model downloaded to {dest_path}")
+            file_size = os.path.getsize(dest_path)
+            print(f"Model downloaded to {dest_path}, size: {file_size} bytes")
+            if file_size < 1000000:  # Less than 1 MB, likely invalid
+                print("Downloaded file is too small, removing")
+                os.remove(dest_path)
+                return False
+            return True
         else:
             print(f"Failed to download model: HTTP {response.status_code}")
+            return False
     except Exception as e:
         print(f"Error downloading model: {e}")
+        return False
 
 def load_model_from_path(path):
     try:
         if not os.path.exists(path):
-            download_model(MODEL_URL, path)
+            if not download_model(MODEL_URL, path):
+                return None
         model = load_model(path, compile=False)
         print("Model loaded successfully.")
         return model
     except Exception as e:
         print(f"Could not load model from {path}: {e}")
+        if os.path.exists(path):
+            os.remove(path)
         return None
 
 model = load_model_from_path(MODEL_PATH)
@@ -78,6 +89,9 @@ def load_image(path):
     return image
 
 def send_email(brand, batch_no, date, confidence, latitude, longitude):
+    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+        print("Email credentials missing, cannot send email")
+        return
     try:
         msg = EmailMessage()
         msg.set_content(
