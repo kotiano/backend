@@ -42,11 +42,15 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 def download_model(url, dest_path):
     try:
         print(f"Downloading model from {url}")
-        response = requests.get(url, stream=True)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, stream=True, headers=headers, timeout=30)
         if response.status_code == 200:
             with open(dest_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                    if chunk:
+                        f.write(chunk)
             file_size = os.path.getsize(dest_path)
             print(f"Model downloaded to {dest_path}, size: {file_size} bytes")
             if file_size < 1000000:  # Less than 1 MB, likely invalid
@@ -55,7 +59,7 @@ def download_model(url, dest_path):
                 return False
             return True
         else:
-            print(f"Failed to download model: HTTP {response.status_code}")
+            print(f"Failed to download model: HTTP {response.status_code}, Content: {response.text[:200]}")
             return False
     except Exception as e:
         print(f"Error downloading model: {e}")
@@ -72,7 +76,7 @@ def load_model_from_path(path):
     except Exception as e:
         print(f"Could not load model from {path}: {e}")
         if os.path.exists(path):
-            os.remove(path)
+            os.remove(path)  # Remove invalid file to retry
         return None
 
 model = load_model_from_path(MODEL_PATH)
